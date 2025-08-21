@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { api } from "@/lib/api";
 import Link from "next/link";
 
 type Post = {
@@ -41,9 +41,7 @@ export default function Home() {
         setAuthed(!!token);
         setUsername(uname);
         setAuthChecked(true);
-        const res = await axios.get(`${API_BASE}/posts/all`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await api.get(`/posts/all`);
         const data = res.data;
         const items: Post[] = Array.isArray(data)
           ? data

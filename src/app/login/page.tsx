@@ -36,6 +36,11 @@ const LoginPage: React.FC = () => {
       localStorage.setItem("userId", userId);
       if (username) localStorage.setItem("username", username);
 
+      // Set lightweight auth cookie for Next.js middleware routing (7 days)
+      try {
+        document.cookie = `auth=1; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      } catch {}
+
       router.push("/");
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Login failed";

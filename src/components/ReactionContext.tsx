@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
-import axios from "axios";
+import { api } from "@/lib/api";
 
 export type ReactionSummary = Record<string, number>;
 
@@ -28,20 +28,10 @@ export const useReactions = () => {
 export const ReactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [pending, setPending] = useState<Record<string, boolean>>({});
 
-  const API_BASE = useMemo(
-    () => process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000",
-    []
-  );
-
   const react = useCallback(async (commentId: string, emoji: string): Promise<ReactResponse> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     setPending((p) => ({ ...p, [commentId]: true }));
     try {
-      const { data } = await axios.post(
-        `${API_BASE}/comments/${commentId}/react-emoji`,
-        { emoji },
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
+      const { data } = await api.post(`/comments/${commentId}/react-emoji`, { emoji });
       return {
         reactionSummary: data?.reactionSummary || {},
         currentUserReaction: data?.currentUserReaction ?? null,
@@ -55,7 +45,7 @@ export const ReactionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return cp;
       });
     }
-  }, [API_BASE]);
+  }, []);
 
   const value = useMemo(() => ({ react, pending }), [react, pending]);
 

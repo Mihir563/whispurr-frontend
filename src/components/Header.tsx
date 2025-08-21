@@ -58,6 +58,8 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userId");
       localStorage.removeItem("username");
+      // Expire auth cookie so middleware stops treating user as logged in
+      document.cookie = `auth=; Path=/; Max-Age=0; SameSite=Lax`;
     } catch {}
     setUsername(null);
     router.push("/login");
@@ -188,10 +190,14 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
             {/* Auth Section */}
             {authed && (
               <div className="px-2 pb-3 border-b border-border mb-3">
-                <div className="flex items-center gap-1 px-3 py-2 rounded-full bg-muted text-primary text-sm font-medium mb-2">
+                <Link
+                  href="/account/profile"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="flex items-center gap-1 px-3 py-2 rounded-full bg-muted text-primary text-sm font-medium mb-2 hover:bg-muted/80"
+                >
                   <span>Hello,</span>
                   <span className="font-bold">{username || "User"}</span>
-                </div>
+                </Link>
                 <button
                   onClick={() => {
                     logout();
@@ -255,10 +261,13 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
         <div className="hidden md:flex items-center gap-3 pl-3 border-l border-border ml-3">
           {authed ? (
             <>
-              <div className="hidden lg:flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-primary text-xs font-medium">
+              <Link
+                href="/account/profile"
+                className="hidden lg:flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-primary text-xs font-medium hover:bg-muted/80"
+              >
                 <span>Hello,</span>
                 <span className="font-bold">{username || "User"}</span>
-              </div>
+              </Link>
               <button
                 onClick={logout}
                 className={cn(

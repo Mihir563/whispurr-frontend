@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, use } from "react";
-import axios from "axios";
+import { api } from "@/lib/api";
 import Link from "next/link";
 import { useReactions } from "../../../components/ReactionContext";
 
@@ -73,10 +73,7 @@ export default function PostDetail({
         setError(null);
         setAuthError(false);
         setLoading(true);
-        const token = localStorage.getItem("token");
-        const { data } = await axios.get(`${API_BASE}/post/${id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const { data } = await api.get(`/post/${id}`);
         if (!data || !data._id) {
           setError("Post not found");
           setPost(null);
@@ -86,9 +83,7 @@ export default function PostDetail({
         // Load nested comments
         try {
           setCommentsLoading(true);
-          const { data: cdata } = await axios.get(`${API_BASE}/comments/by-post/${id}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
+          const { data: cdata } = await api.get(`/comments/by-post/${id}`);
           setComments(Array.isArray(cdata?.comments) ? cdata.comments : []);
         } catch (_) {
           setComments([]);
@@ -115,11 +110,8 @@ export default function PostDetail({
 
   const reloadComments = async () => {
     try {
-      const token = localStorage.getItem("token");
       setCommentsLoading(true);
-      const { data } = await axios.get(`${API_BASE}/comments/by-post/${id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const { data } = await api.get(`/comments/by-post/${id}`);
       setComments(Array.isArray(data?.comments) ? data.comments : []);
     } catch {
       // ignore
@@ -193,16 +185,12 @@ export default function PostDetail({
         setSubmitMsg("You need to be logged in to reply.");
         return;
       }
-      await axios.post(
-        `${API_BASE}/comments/create`,
-        {
-          postId: id,
-          comment: text,
-          isAnonymous: replyAnon[parentId] ?? true,
-          parentComment: parentId,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post(`/comments/create`, {
+        postId: id,
+        comment: text,
+        isAnonymous: replyAnon[parentId] ?? true,
+        parentComment: parentId,
+      });
       setReplyText((s) => ({ ...s, [parentId]: "" }));
       setReplyAnon((s) => ({ ...s, [parentId]: true }));
       setReplyOpen((s) => ({ ...s, [parentId]: false }));
@@ -237,11 +225,7 @@ export default function PostDetail({
         setSubmitting(false);
         return;
       }
-      await axios.post(
-        `${API_BASE}/comments/create`,
-        { postId: id, comment, isAnonymous },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post(`/comments/create`, { postId: id, comment, isAnonymous });
       setSubmitMsg("Comment posted!");
       setComment("");
       setIsAnonymous(true);
