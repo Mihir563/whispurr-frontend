@@ -35,7 +35,7 @@ function getPreferred(): Mode {
   const saved = localStorage.getItem("theme") as Mode | null;
   if (saved && (THEMES as string[]).includes(saved)) return saved;
   const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return prefersDark ? "dark" : "light";
+  return prefersDark ? "ocean" : "light";
 }
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }>
@@ -57,7 +57,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }>
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
       const saved = localStorage.getItem("theme") as Mode | null;
-      if (!saved) setTheme(mq.matches ? "dark" : "light");
+      if (!saved) setTheme(mq.matches ? "ocean" : "light");
     };
     mq.addEventListener?.("change", handler);
     return () => mq.removeEventListener?.("change", handler);

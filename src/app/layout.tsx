@@ -4,6 +4,7 @@ import "./globals.css";
 import Header  from "@/components/Header";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { ReactionProvider } from "../components/ReactionContext";
+import { AuthBackground } from "@/components/AuthBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,10 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <ReactionProvider>
+            <AuthBackground />
             <Header />
             {/* Spacer to offset fixed header height */}
-            <div aria-hidden className="h-24 sm:h-28" />
+            <div aria-hidden className="h-16" />
             {children}
           </ReactionProvider>
         </ThemeProvider>

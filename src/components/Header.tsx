@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
-import { User, LogOut, LogIn, Plus, Palette, ChevronDown } from "lucide-react";
+import { User, LogOut, LogIn, Plus, Palette, ChevronDown, Menu, X } from "lucide-react";
 
 const Header: React.FC<{ className?: string }> = ({ className }) => {
   const router = useRouter();
@@ -15,6 +15,7 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
   const [username, setUsername] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const authed = useMemo(() => (mounted ? !!localStorage.getItem("token") : false), [mounted, username]);
 
   useEffect(() => {
@@ -27,14 +28,17 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => setShowThemeDropdown(false);
-    if (showThemeDropdown) {
+    const handleClickOutside = () => {
+      setShowThemeDropdown(false);
+      setShowMobileMenu(false);
+    };
+    if (showThemeDropdown || showMobileMenu) {
       document.addEventListener("click", handleClickOutside);
       return () => document.removeEventListener("click", handleClickOutside);
     }
-  }, [showThemeDropdown]);
+  }, [showThemeDropdown, showMobileMenu]);
 
   const navItems: { name: string; link: string; icon?: JSX.Element }[] = useMemo(() => {
     const items: { name: string; link: string; icon?: JSX.Element }[] = [{ name: "Home", link: "/" }];
@@ -75,8 +79,8 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
     </Link>
   );
 
-  const ThemeSelector = () => (
-    <div className="relative ml-2">
+  const ThemeSelector = ({ mobile = false }: { mobile?: boolean }) => (
+    <div className={cn("relative", !mobile && "ml-2")}>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -84,7 +88,8 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
         }}
         title="Select theme"
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-full border border-border transition-colors bg-background text-primary hover:bg-muted"
+          "flex items-center gap-2 px-3 py-2 rounded-full border border-border transition-colors bg-background text-primary hover:bg-muted",
+          mobile && "w-full justify-start"
         )}
         type="button"
         tabIndex={0}
@@ -100,7 +105,8 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           className={cn(
-            "absolute right-0 top-full mt-2 py-2 min-w-[140px] rounded-lg border border-border bg-background shadow-lg z-50"
+            "absolute right-0 top-full mt-2 py-2 min-w-[140px] rounded-lg border border-border bg-background shadow-lg z-50",
+            mobile && "left-0 right-auto"
           )}
         >
           {themes.map((themeOption) => (
@@ -134,6 +140,84 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
     </div>
   );
 
+  const MobileMenu = () => (
+    <div className="relative md:hidden">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowMobileMenu(!showMobileMenu);
+        }}
+        className={cn(
+          "flex items-center px-3 py-2 rounded-full border border-border transition-colors bg-background text-primary hover:bg-muted"
+        )}
+        type="button"
+        tabIndex={0}
+      >
+        {showMobileMenu ? <X size={18} /> : <Menu size={18} />}
+      </button>
+
+      <AnimatePresence>
+        {showMobileMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            className={cn(
+              "absolute right-0 top-full mt-2 py-3 min-w-[200px] rounded-lg border border-border bg-background shadow-lg z-50"
+            )}
+          >
+            {/* Navigation Items */}
+            <div className="px-2 pb-3">
+              {navItems.map((navItem, idx) => (
+                <Link
+                  key={`mobile-nav-${idx}`}
+                  href={navItem.link}
+                  onClick={() => setShowMobileMenu(false)}
+                  className={cn(
+                    "flex items-center w-full px-3 py-2 mb-1 rounded-full text-sm font-medium transition-colors bg-muted/60 hover:bg-muted text-primary",
+                    authed && navItem.name === "Create" && "font-semibold text-accent"
+                  )}
+                  tabIndex={0}
+                >
+                  <span className="mr-3">{navItem.icon}</span>
+                  <span>{navItem.name}</span>
+                </Link>
+              ))}
+            </div>
+
+            {/* Auth Section */}
+            {authed && (
+              <div className="px-2 pb-3 border-b border-border mb-3">
+                <div className="flex items-center gap-1 px-3 py-2 rounded-full bg-muted text-primary text-sm font-medium mb-2">
+                  <span>Hello,</span>
+                  <span className="font-bold">{username || "User"}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setShowMobileMenu(false);
+                  }}
+                  className={cn(
+                    "flex items-center w-full px-3 py-2 rounded-full border border-border text-sm transition-colors font-medium bg-muted hover:bg-accent/10 text-primary"
+                  )}
+                  tabIndex={0}
+                >
+                  <LogOut size={16} className="mr-3" />
+                  Logout
+                </button>
+              </div>
+            )}
+
+            {/* Theme Selector */}
+            <div className="px-2">
+              <ThemeSelector mobile />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
   return (
     <AnimatePresence mode="wait">
       <motion.header
@@ -149,8 +233,8 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
         {/* Logo */}
         <Logo />
 
-        {/* Middle: Nav */}
-        <nav className="flex gap-2 items-center">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex gap-2 items-center">
           {navItems.map((navItem, idx) => (
             <Link
               key={`nav-${idx}`}
@@ -167,11 +251,11 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
           ))}
         </nav>
 
-        {/* Right: Auth and Theme */}
-        <div className="flex items-center gap-3 pl-3 border-l border-border ml-3">
+        {/* Desktop Right Section */}
+        <div className="hidden md:flex items-center gap-3 pl-3 border-l border-border ml-3">
           {authed ? (
             <>
-              <div className="hidden sm:flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-primary text-xs font-medium">
+              <div className="hidden lg:flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-primary text-xs font-medium">
                 <span>Hello,</span>
                 <span className="font-bold">{username || "User"}</span>
               </div>
@@ -183,12 +267,18 @@ const Header: React.FC<{ className?: string }> = ({ className }) => {
                 tabIndex={0}
               >
                 <LogOut size={16} className="mr-2" />
-                Logout
+                <span className="hidden lg:inline">Logout</span>
+                <span className="lg:hidden">
+                  <LogOut size={16} />
+                </span>
               </button>
             </>
           ) : null}
           <ThemeSelector />
         </div>
+
+        {/* Mobile Menu */}
+        <MobileMenu />
       </motion.header>
     </AnimatePresence>
   );

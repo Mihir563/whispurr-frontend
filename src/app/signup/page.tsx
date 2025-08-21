@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AuthBackground } from "@/components/AuthBackground";
 
 const SignupPage: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -61,6 +62,7 @@ const SignupPage: React.FC = () => {
   return (
     <div className="min-h-screen grid place-items-center bg-[var(--page-bg)] text-[var(--text)] p-5">
       <div className="w-full max-w-[520px] rounded-2xl p-7 bg-[var(--panel-bg)] border border-[var(--panel-border)] backdrop-blur-[var(--panel-blur)] shadow-[0_18px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <AuthBackground />
         <h1 className="m-0 mb-1.5 text-[26px] font-extrabold text-[var(--text-strong)]">Join Whispurr</h1>
         <p className="m-0 mb-4 text-sm text-[var(--text-muted)]">Create your account to start whispering.</p>
 
