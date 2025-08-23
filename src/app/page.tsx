@@ -121,14 +121,16 @@ export default function Home() {
               <Link href={`/post/${p._id || p.id}`} className="block group" key={p._id || p.id}>
                 <article className="relative overflow-hidden rounded-2xl p-5 border bg-[var(--panel-bg)] border-[var(--panel-border)] transition duration-200 ease-linear group-hover:-translate-y-0.5 group-hover:shadow-[var(--hover-shadow)] group-hover:border-[var(--accent-35a)]">
                   <header className="grid grid-cols-[auto,1fr,auto] gap-3 items-center">
+                    <div className="flex items-center-2">
                     <div className="w-10 h-10 rounded-full grid place-items-center font-extrabold text-[var(--text-strong)] bg-[radial-gradient(circle_at_30%_30%,var(--accent-16a),transparent_60%),var(--btn-bg)] border border-[var(--border)] shadow-[var(--hover-shadow)]" aria-hidden>
                       {initial(name)}
                     </div>
-                    <div className="leading-tight">
+                    <div className="leading-tight px-2">
                       <div className="font-bold text-[var(--text-strong)]">{name}</div>
                       <div className="text-xs text-[var(--text-muted)]">{dateStr(p)}</div>
                     </div>
-                    {p.mood ? <span className="text-xs px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)]">{p.mood}</span> : null}
+                    </div>
+                    {p.mood ? <span className="text-xs justify-end px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)]">{p.mood}</span> : null}
                   </header>
                   {p.title ? <h3 className="mt-3 mb-2 text-lg font-semibold text-[var(--text-strong)]">{p.title}</h3> : null}
                   {p.content ? (

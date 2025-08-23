@@ -273,7 +273,7 @@ export default function PostDetail({
           <div>
             <header className="pt-4">
               <div className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]">
-                <span className="text-xs px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)]">{post.mood || "neutral"}</span>
+                <span className="text-xs px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] justify-end">{post.mood || "neutral"}</span>
                 <span className="inline-block w-1 h-1 rounded-full bg-[var(--text-muted)] opacity-60" />
                 <span>{displayName(post)}</span>
                 <span className="inline-block w-1 h-1 rounded-full bg-[var(--text-muted)] opacity-60" />
@@ -281,7 +281,7 @@ export default function PostDetail({
               </div>
               <h1 className="mt-2 text-[32px] text-[var(--text-strong)]">{post.title || "Untitled"}</h1>
             </header>
-            <article className="relative overflow-hidden rounded-2xl p-4 border bg-[var(--panel-bg)] border-[var(--panel-border)]">
+            <article className="relative overflow-hidden rounded-2xl p-4 border bg-[var(--panel-bg)] border-[var(--panel-border)] mb-2">
               <span className="pointer-events-none absolute inset-0 rounded-2xl bg-[var(--panel-gloss)]" />
               <p className="m-0 whitespace-pre-wrap relative">{post.content}</p>
             </article>
