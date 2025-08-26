@@ -36,6 +36,8 @@ type Post = {
   updatedAt?: string;
   reactions?: Record<string, any>;
   comments?: CommentItem[];
+  imageUrl?: string | null;
+  imagePath?: string | null;
 };
 
 export default function PostDetail({
@@ -281,6 +283,12 @@ export default function PostDetail({
               </div>
               <h1 className="mt-2 text-[32px] text-[var(--text-strong)]">{post.title || "Untitled"}</h1>
             </header>
+            {post.imageUrl ? (
+              <div className="mt-3 overflow-hidden rounded-2xl border bg-[var(--panel-bg)] border-[var(--panel-border)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={post.imageUrl} alt={post.title || "Post image"} className="w-full max-h-[450px] object-cover" />
+              </div>
+            ) : null}
             <article className="relative overflow-hidden rounded-2xl p-4 border bg-[var(--panel-bg)] border-[var(--panel-border)] mb-2">
               <span className="pointer-events-none absolute inset-0 rounded-2xl bg-[var(--panel-gloss)]" />
               <p className="m-0 whitespace-pre-wrap relative">{post.content}</p>

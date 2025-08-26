@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
@@ -13,6 +13,8 @@ import { api } from "@/lib/api";
   postedBy?: { username?: string } | string | null;
   createdAt?: string;
   commentsCount?: number;
+  imageUrl?: string | null;
+  imagePath?: string | null;
 };
 
 const TABS = ["All", "Public", "Anonymous"] as const;
@@ -24,6 +26,20 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<{ title: string; content: string; mood: string; isAnonymous: boolean; imageUrl?: string | null; imagePath?: string | null }>({
+    title: "",
+    content: "",
+    mood: "neutral",
+    isAnonymous: false,
+  });
+  const [saving, setSaving] = useState(false);
+  const [itemError, setItemError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [username, setUsername] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -52,6 +68,82 @@ export default function ProfilePage() {
     };
     load();
   }, []);
+
+  const UPLOAD_URL = useMemo(
+    () => process.env.NEXT_PUBLIC_UPLOAD_IMAGE_URL || "https://veovfplmlcnmgzgtevfx.supabase.co/functions/v1/upload-image",
+    []
+  );
+
+  const uploadToSupabase = async (file: File): Promise<{ url: string; path: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(UPLOAD_URL, { method: "POST", body: form });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || "Image upload failed");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!data?.url || !data?.path) throw new Error("Invalid upload response");
+    return { url: data.url as string, path: data.path as string };
+  };
+
+  // Inline edit helpers
+  const startEdit = (p: Post) => {
+    setEditingId(p._id);
+    setForm({
+      title: p.title || "",
+      content: p.content || "",
+      mood: p.mood || "neutral",
+      isAnonymous: !!p.isAnonymous,
+      imageUrl: p.imageUrl ?? null,
+      imagePath: p.imagePath ?? null,
+    });
+    setItemError(null);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setRemoveImage(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setItemError(null);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setRemoveImage(false);
+  };
+
+  const saveEdit = async (id: string) => {
+    try {
+      setSaving(true);
+      setItemError(null);
+      let imageUpdate: { imageUrl?: string | null; imagePath?: string | null } = {};
+      if (selectedFile) {
+        setUploadingImage(true);
+        const uploaded = await uploadToSupabase(selectedFile);
+        setUploadingImage(false);
+        imageUpdate = { imageUrl: uploaded.url, imagePath: uploaded.path };
+      } else if (removeImage) {
+        imageUpdate = { imageUrl: null, imagePath: null };
+      }
+      const payload = {
+        title: form.title,
+        content: form.content,
+        mood: form.mood,
+        isAnonymous: form.isAnonymous,
+        ...imageUpdate,
+      };
+      const { data } = await api.patch(`/posts/${id}`, payload);
+      const updated = data?.post;
+      if (!updated) throw new Error("Invalid response from server");
+      setPosts((prev) => prev.map((x) => (x._id === id ? { ...x, ...updated } : x)));
+      setEditingId(null);
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || "Failed to update post";
+      setItemError(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const filtered = posts.filter((p) => {
     if (tab === "All") return true;
@@ -119,11 +211,12 @@ export default function ProfilePage() {
 
           {!loading && !error && filtered.map((p) => {
             const name = displayName(p);
-            return (
-              <Link href={`/post/${p._id}`} className="block group" key={p._id}>
-                <article className="relative overflow-hidden rounded-2xl p-5 border bg-[var(--panel-bg)] border-[var(--panel-border)] transition duration-200 ease-linear group-hover:-translate-y-0.5 group-hover:shadow-[var(--hover-shadow)] group-hover:border-[var(--accent-35a)]">
-                  <header className="grid grid-cols-[auto,1fr,auto] gap-3 items-center">
-                    <div className="flex items-center-2">
+            const isEditing = editingId === p._id;
+
+            const Card = (
+              <article className="relative overflow-hidden rounded-2xl p-5 border bg-[var(--panel-bg)] border-[var(--panel-border)] transition duration-200 ease-linear group-hover:-translate-y-0.5 group-hover:shadow-[var(--hover-shadow)] group-hover:border-[var(--accent-35a)]">
+                <header className="grid grid-cols-[auto,1fr,auto] gap-3 items-center">
+                  <div className="flex items-center-2">
                     <div className="w-10 h-10 rounded-full grid place-items-center font-extrabold text-[var(--text-strong)] bg-[radial-gradient(circle_at_30%_30%,var(--accent-16a),transparent_60%),var(--btn-bg)] border border-[var(--border)] shadow-[var(--hover-shadow)]" aria-hidden>
                       {initial(name)}
                     </div>
@@ -131,23 +224,151 @@ export default function ProfilePage() {
                       <div className="font-bold text-[var(--text-strong)]">{name}</div>
                       <div className="text-xs text-[var(--text-muted)]">{dateStr(p)}</div>
                     </div>
-                    </div>
-                    {p.mood ? <span className="text-xs px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] justify-end">{p.mood}</span> : null}
-                  </header>
-                  {p.title ? <h3 className="mt-3 mb-2 text-lg font-semibold text-[var(--text-strong)]">{p.title}</h3> : null}
-                  {p.content ? (
-                    <p
-                      className="m-0 text-[var(--text)] opacity-95 overflow-hidden"
-                      style={{ display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical" }}
-                    >
-                      {p.content}
-                    </p>
+                  </div>
+                  {!isEditing && p.mood ? (
+                    <span className="text-xs px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] justify-end">{p.mood}</span>
                   ) : null}
+                </header>
+
+                {!isEditing ? (
+                  <>
+                    {p.imageUrl ? (
+                      <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--panel-bg)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.imageUrl} alt={p.title || "Post image"} className="w-full h-44 object-cover" />
+                      </div>
+                    ) : null}
+                    {p.title ? <h3 className="mt-3 mb-2 text-lg font-semibold text-[var(--text-strong)]">{p.title}</h3> : null}
+                    {p.content ? (
+                      <p
+                        className="m-0 text-[var(--text)] opacity-95 overflow-hidden"
+                        style={{ display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical" }}
+                      >
+                        {p.content}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">Image</label>
+                      {previewUrl ? (
+                        <div className="mb-2 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--panel-bg)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={previewUrl} alt="Preview" className="w-full h-40 object-cover" />
+                        </div>
+                      ) : form.imageUrl && !removeImage ? (
+                        <div className="mb-2 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--panel-bg)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={form.imageUrl} alt={form.title || "Post image"} className="w-full h-40 object-cover" />
+                        </div>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            setSelectedFile(f);
+                            setPreviewUrl(f ? URL.createObjectURL(f) : null);
+                            if (f) setRemoveImage(false);
+                          }}
+                        />
+                        {selectedFile && (
+                          <button
+                            type="button"
+                            className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text)]"
+                            onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
+                          >
+                            Clear new image
+                          </button>
+                        )}
+                        {form.imageUrl && !selectedFile && (
+                          <button
+                            type="button"
+                            className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text)]"
+                            onClick={() => setRemoveImage((v) => !v)}
+                          >
+                            {removeImage ? "Undo remove" : "Remove current image"}
+                          </button>
+                        )}
+                        {uploadingImage && <span className="text-xs text-[var(--text-muted)]">Uploading image…</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">Title</label>
+                      <input
+                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-[var(--text)]"
+                        value={form.title}
+                        onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">Content</label>
+                      <textarea
+                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-[var(--text)] min-h-[100px]"
+                        value={form.content}
+                        onChange={(e) => setForm((s) => ({ ...s, content: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">Mood</label>
+                        <input
+                          className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-[var(--text)]"
+                          value={form.mood}
+                          onChange={(e) => setForm((s) => ({ ...s, mood: e.target.value }))}
+                        />
+                      </div>
+                      <label className="inline-flex items-center gap-2 mt-5">
+                        <input
+                          type="checkbox"
+                          checked={form.isAnonymous}
+                          onChange={(e) => setForm((s) => ({ ...s, isAnonymous: e.target.checked }))}
+                        />
+                        <span className="text-sm text-[var(--text)]">Anonymous</span>
+                      </label>
+                    </div>
+                    {itemError && (
+                      <div className="p-2 rounded-lg border border-[var(--border)] bg-[rgba(255,107,107,0.08)] text-[#ff6b6b] text-sm">{itemError}</div>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        className="px-4 py-2 rounded-lg border border-[var(--accent-35a)] bg-[var(--btn-primary-bg)] text-[var(--text-strong)] font-semibold disabled:opacity-60"
+                        disabled={saving}
+                        onClick={() => saveEdit(p._id)}
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        className="px-4 py-2 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text)]"
+                        onClick={cancelEdit}
+                        disabled={saving}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!isEditing && (
                   <footer className="flex gap-2.5 items-center mt-4">
                     <div className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] bg-transparent">💬 {typeof p?.commentsCount === 'number' ? p.commentsCount : 0}</div>
+                    <button
+                      className="ml-auto text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text)] bg-[var(--input-bg)] hover:border-[var(--accent-35a)]"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); startEdit(p); }}
+                    >
+                      Edit
+                    </button>
                   </footer>
-                </article>
-              </Link>
+                )}
+              </article>
+            );
+
+            return isEditing ? (
+              <div className="block group" key={p._id}>{Card}</div>
+            ) : (
+              <Link href={`/post/${p._id}`} className="block group" key={p._id}>{Card}</Link>
             );
           })}
         </div>

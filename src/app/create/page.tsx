@@ -26,9 +26,16 @@ const Create: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const API_BASE = useMemo(
     () => process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000",
+    []
+  );
+  const UPLOAD_URL = useMemo(
+    () => process.env.NEXT_PUBLIC_UPLOAD_IMAGE_URL || "https://veovfplmlcnmgzgtevfx.supabase.co/functions/v1/upload-image",
     []
   );
 
@@ -41,6 +48,24 @@ const Create: React.FC = () => {
       "";
     if (knownToken) setToken(knownToken);
   }, []);
+
+  const uploadToSupabase = async (file: File): Promise<{ url: string; path: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(UPLOAD_URL, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || "Image upload failed");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!data?.url || !data?.path) {
+      throw new Error("Invalid upload response");
+    }
+    return { url: data.url as string, path: data.path as string };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,9 +83,22 @@ const Create: React.FC = () => {
 
     try {
       setSubmitting(true);
+      let uploaded: { url: string; path: string } | null = null;
+      if (imageFile) {
+        setUploadingImage(true);
+        uploaded = await uploadToSupabase(imageFile);
+        setUploadingImage(false);
+      }
       await axios.post(
         `${API_BASE}/posts/create`,
-        { title, content, mood, isAnonymous },
+        {
+          title,
+          content,
+          mood,
+          isAnonymous,
+          imageUrl: uploaded?.url,
+          imagePath: uploaded?.path,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage("Whispurr created successfully ✨");
@@ -68,6 +106,8 @@ const Create: React.FC = () => {
       setContent("");
       setMood("neutral");
       setIsAnonymous(true);
+      setImageFile(null);
+      setImagePreview(null);
       // @ts-expect-error : ignore
     } catch (err: Error) {
       const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Something went wrong";
@@ -111,6 +151,36 @@ const Create: React.FC = () => {
               onChange={(e) => setContent(e.target.value)}
               placeholder="Let your thoughts flow..."
             />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-[13px] text-[var(--text-muted)]" htmlFor="image">Image (optional)</label>
+            <input
+              id="image"
+              type="file"
+              accept="image/*"
+              className="w-full text-[var(--text)] rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-3.5 py-2"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setImageFile(file);
+                setImagePreview(file ? URL.createObjectURL(file) : null);
+              }}
+            />
+            {imagePreview && (
+              <div className="mt-2">
+                <div className="overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--panel-bg)]">
+                  <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover" />
+                </div>
+                <button
+                  type="button"
+                  className="mt-2 text-sm px-3 py-1.5 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text)] hover:border-[var(--accent-35a)]"
+                  onClick={() => { setImageFile(null); setImagePreview(null); }}
+                >
+                  Remove image
+                </button>
+              </div>
+            )}
+            {uploadingImage && <div className="text-xs text-[var(--text-muted)]">Uploading image…</div>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

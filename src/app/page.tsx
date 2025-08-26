@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+// Note: use fetch here to avoid axios interceptor adding Authorization
 import Link from "next/link";
 
 type Post = {
@@ -16,6 +16,8 @@ type Post = {
   reactions?: any;
   comments?: any[] | number;
   commentsCount?: number;
+  imageUrl?: string | null;
+  imagePath?: string | null;
 };
 
 export default function Home() {
@@ -41,8 +43,12 @@ export default function Home() {
         setAuthed(!!token);
         setUsername(uname);
         setAuthChecked(true);
-        const res = await api.get(`/posts/all`);
-        const data = res.data;
+        const res = await fetch(`${API_BASE}/posts/all`, { cache: "no-store" });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || "Failed to load posts");
+        }
+        const data = await res.json();
         const items: Post[] = Array.isArray(data)
           ? data
           : Array.isArray(data?.posts)
@@ -50,7 +56,7 @@ export default function Home() {
           : [];
         setPosts(items);
       } catch (err: any) {
-        const msg = err?.response?.data?.message || err?.message || "Failed to load posts";
+        const msg = err?.message || "Failed to load posts";
         setError(msg);
       } finally {
         setLoading(false);
@@ -132,6 +138,12 @@ export default function Home() {
                     </div>
                     {p.mood ? <span className="text-xs justify-end px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)]">{p.mood}</span> : null}
                   </header>
+                  {p.imageUrl ? (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--panel-bg)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.imageUrl} alt={p.title || "Post image"} className="w-full h-44 object-cover" />
+                    </div>
+                  ) : null}
                   {p.title ? <h3 className="mt-3 mb-2 text-lg font-semibold text-[var(--text-strong)]">{p.title}</h3> : null}
                   {p.content ? (
                     <p
